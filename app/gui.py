@@ -3,66 +3,74 @@ from tkinter import ttk, messagebox, simpledialog
 from .logic import BudgetTracker
 
 class BudgetTrackerApp:
-    def __init__(self, root):
-        self.tracker = BudgetTracker()
+    def __init__(self, root: tk.Tk):
         self.root = root
         self.root.title("Budget Tracker")
-        self.root.geometry("450x400")
-        self.root.configure(bg="#f5f5f5")
+        self.root.configure(bg="#f0f0f0")
 
-        title = tk.Label(root, text="\U0001F4B0 Budget Tracker", font=("Helvetica", 18, "bold"), bg="#f5f5f5", fg="#333")
-        title.pack(pady=20)
+        self.tracker = BudgetTracker()
 
-        button_frame = tk.Frame(root, bg="#f5f5f5")
-        button_frame.pack(pady=10)
+        self.btn_style = {
+            "font": ("Helvetica", 12),
+            "fg": "white",
+            "width": 20,
+            "height": 2
+        }
 
-        btn_style = {"width": 20, "height": 2, "fg": "white", "font": ("Helvetica", 10, "bold")}
+        self._setup_ui()
 
-        tk.Button(button_frame, text="Add Income", command=self.add_income, bg="#4CAF50", **btn_style).grid(row=0, column=0, padx=5, pady=5)
-        tk.Button(button_frame, text="Add Expense", command=self.add_expense, bg="#4CAF50", **btn_style).grid(row=1, column=0, padx=5, pady=5)
-        tk.Button(button_frame, text="View Balance", command=self.view_balance, bg="#4CAF50", **btn_style).grid(row=2, column=0, padx=5, pady=5)
-        tk.Button(button_frame, text="View Transactions", command=self.view_transactions, bg="#4CAF50", **btn_style).grid(row=3, column=0, padx=5, pady=5)
-        tk.Button(button_frame, text="Exit", command=root.quit, bg="#f44336", **btn_style).grid(row=4, column=0, padx=5, pady=10)
+    def _setup_ui(self):
+        tk.Label(self.root, text="Simple Budget Tracker", font=("Helvetica", 16, "bold"), bg="#f0f0f0").pack(pady=10)
+        button_frame = tk.Frame(self.root, bg="#f0f0f0")
+        button_frame.pack(pady=20)
+        self._create_buttons(button_frame)
+
+    def _create_buttons(self, frame):
+        actions = [
+            ("Add Income", self.add_income),
+            ("Add Expense", self.add_expense),
+            ("View Balance", self.view_balance),
+            ("View Transactions", self.view_transactions),
+            ("Exit", self.root.quit)
+        ]
+        for i, (label, command) in enumerate(actions):
+            color = "#f44336" if label == "Exit" else "#4CAF50"
+            btn = tk.Button(frame, text=label, command=command, bg=color, **self.btn_style)
+            btn.grid(row=i, column=0, pady=5)
 
     def add_income(self):
-        amount = simpledialog.askfloat("Add Income", "Enter income amount in Rands:")
-        if amount is not None:
-            desc = simpledialog.askstring("Add Income", "Enter description (optional):")
-            self.tracker.add_income(amount, desc or "")
-            messagebox.showinfo("Success", "Income added successfully! ✅")
+        try:
+            amount = float(simpledialog.askstring("Add Income", "Enter income amount in Rands:"))
+            description = simpledialog.askstring("Description", "Enter income description (optional):") or ""
+            self.tracker.add_income(amount, description)
+            messagebox.showinfo("Success", "Income added successfully.")
+        except (TypeError, ValueError):
+            messagebox.showerror("Error", "Invalid input. Please enter a numeric value.")
 
     def add_expense(self):
-        amount = simpledialog.askfloat("Add Expense", "Enter expense amount in Rands:")
-        if amount is not None:
-            category = simpledialog.askstring("Add Expense", "Enter category:")
-            desc = simpledialog.askstring("Add Expense", "Enter description (optional):")
-            self.tracker.add_expense(amount, category or "Uncategorized", desc or "")
-            messagebox.showinfo("Success", "Expense added successfully! ✅")
+        try:
+            amount = float(simpledialog.askstring("Add Expense", "Enter expense amount in Rands:"))
+            category = simpledialog.askstring("Category", "Enter expense category:") or "Uncategorized"
+            description = simpledialog.askstring("Description", "Enter expense description (optional):") or ""
+            self.tracker.add_expense(amount, category, description)
+            messagebox.showinfo("Success", "Expense added successfully.")
+        except (TypeError, ValueError):
+            messagebox.showerror("Error", "Invalid input. Please enter a numeric value.")
 
     def view_balance(self):
         balance = self.tracker.view_balance()
-        messagebox.showinfo("Current Balance", f"\U0001F4B0 Your Balance is: R{balance:,.2f}")
+        messagebox.showinfo("Balance", f"Your current balance is: R{balance:.2f}")
 
     def view_transactions(self):
-        transactions = self.tracker.get_transactions()
-        if not transactions:
+        if not self.tracker.has_transactions():
             messagebox.showinfo("Transactions", "No transactions recorded yet.")
             return
 
-        top = tk.Toplevel(self.root)
-        top.title("Transaction History")
-        top.geometry("500x300")
+        transactions_text = ""
+        for idx, t in enumerate(self.tracker.transactions, start=1):
+            if t.type == "income":
+                transactions_text += f"{idx}. [Income] R{t.amount:.2f} - {t.description}\n"
+            else:
+                transactions_text += f"{idx}. [Expense] R{t.amount:.2f} - {t.category} - {t.description}\n"
 
-        text_area = tk.Text(top, wrap=tk.WORD, font=("Courier", 10))
-        scrollbar = ttk.Scrollbar(top, orient="vertical", command=text_area.yview)
-        text_area.configure(yscrollcommand=scrollbar.set)
-
-        for t in transactions:
-            tx = f"{t.type.capitalize()}: R{t.amount:,.2f} | "
-            if t.type == "expense":
-                tx += f"Category: {t.category} | "
-            tx += f"{t.description}\n"
-            text_area.insert(tk.END, tx)
-
-        text_area.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        messagebox.showinfo("Transactions", transactions_text.strip())
